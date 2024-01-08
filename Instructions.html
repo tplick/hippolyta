@@ -1,0 +1,137 @@
+<h1>Hippolyta 2.0 setup instructions</h1>
+<h2>last modified December 12, 2014</h2>
+<h2>Tom Plick (tomplick@gmail.com)</h2>
+<h2>("Tommah" on Little Golem)</h2>
+
+<h4>Compiling</h4>
+
+<P>To compile the Amazons bot, type <b>make</b>.
+gcc will probably yield the best results (I also tested with clang and icc
+but the resulting executables were slower).
+Now execute
+<pre>src/hippolyta -t</pre>
+to run the automated test suite.  If any of the tests fails, email me.
+
+<P>Assuming all the tests have passed, you can try out the bot by running this command:
+<pre>src/hippolyta 0001001000000000000000000000001000000001000000000000000000002000000002000000000000000000000002002000</pre>
+It should think for a while and then output three squares (source, destination, target).
+Hopefully it has chosen the move d1-d7/g7 or g1-g7/d7.
+
+<P>The Amazons bot takes as an argument one string of 100 characters.  This encodes the state of the board
+from square a1 to square j10: empty squares are represented by 0, arrows by 3, and Amazons by 1 or 2.
+When the number of arrows is even, it is player 1's turn; when odd, it is player 2's turn.
+
+<P>The output of the program is the names of three squares, one per line.
+If the program wants to resign, it will instead print "resign" and then two blank lines.
+(There is actually a fourth line of output that comes after the move;
+the fourth is used for the messages that say
+"I count XX territory for me versus XX for you.")
+
+<P>The program is invoked once for each move that is generated;
+the program prints its move and then exits.  This is different from how (for example)
+chess engines work, but it is simple and easy to work with.
+
+<P>To see all the bot's options, run
+
+<pre>src/hippolyta -h</pre>
+
+<P>You can set the thinking time in seconds by using the -s option.  This time is only a suggestion, though;
+near the beginning of the game, the bot will usually take several minutes to pick its move.
+
+
+<h4>Connecting to LittleGolem</h4>
+
+<P>This part is complicated and needs to be done carefully!  I suggest using Firefox for this, because
+Firefox provides easy access to browser cookies.
+
+<ul>
+<li>Visit Little Golem in Firefox, right-click on the page, and select View Page Info.
+
+<li>Under Security, click View Cookies.  There should be several cookies there from littlegolem.net.  Delete them.
+
+<li>Close the dialog window.  Register a new account on Little Golem as normal.
+
+<li>Once you receive your login password, return to the site and log in under the new account.  (If you wish,
+you can edit your bot's profile now.)
+
+<li>View the site cookies again, then open LOGIN.py in a text editor.  Replace the dots in the variable Cookie
+with the appropriate values from the browser cookie.
+
+<li>In Firefox, delete the cookies from littlegolem.net again.
+
+<li>Go into the top-level directory and run the script <b>main.sh</b>.
+</ul>
+
+<i>It is important to delete the cookies before and after creating the bot's account.  If you do not do this,
+the bot may try to play your turns instead of its own!</i>
+
+<P>This process is a little annoying, but the good news is that after you do it once,
+you should never have to do it again.
+My bot's cookie is still working after four years!
+
+<P>The bot should now be running.  To confirm this, challenge it to a game of Amazons.  The bot should accept your
+challenge within 5 to 10 minutes.
+
+
+<h4>A quick overview of the Python script</h4>
+
+<P>This script is called periodically to play turns and answer invitations.
+As written, it accepts Amazons invitations and rejects all others.
+To modify this behavior, modify the function <b>answerInvitation</b>.
+
+<P>To support a new game, you must modify the function <b>handleGame</b>
+to interpret the board for that game.  Then (if you program your bots the same way I did)
+pass the game state to your program and listen for the move that the bot generates.
+Look at the <b>handleXXXGame</b> functions for examples.  (If you add support for a new game,
+remember to allow your bot to answer invitations for that game!)
+
+<h4>Overview of the Amazons bot</h4>
+
+<P><b>bits128.c:</b> Operations on 128-bit integers.  The engine represents the board as a set of 128-bit
+bitfield.  Bit 0 corresponds to a1, bit 1 corresponds to a2, etc., but bit 11 corresponds to b1.
+The engine pretends that there is an eleventh column and an eleventh row, and these are filled with
+arrows when the position is created.
+This is done to speed up the logic in several places throughout the program.
+For instance, to determine whether two squares are adjacent,
+we figure out whether the absolute value of their difference is 1, 10, 11, or 12.
+(This system is somewhat reminiscent of the 0x88 board representation used in
+older chess programs.)
+This board representation requires 121 bits, which conveniently fits into our 128-bit bitfields.
+
+<P>Our 128-bit ``integers'' are actually composed of two 64-bit integers.
+The logical bit operations are defined in a straightforward way.  The shiftUp/shiftDown
+operation is crucial to the evaluator, as it is used to assign the squares on the board
+to each player's territory.  If you are running on a 32-bit system, gcc will synthesize
+the 64-bit operations in terms of 32-bit integers, so the program will still work for you
+(albeit with a speed penalty).  In fact, I am still running on 32-bit, so the program will
+probably run a lot faster for you than it does for me!
+
+
+<P><b>hamilton.c:</b> Hamiltonian move search.  When the main search procedure decides to move
+in a territory that is sealed off and contains only one Amazon, this code will be called
+to try to find a safe path.  The code searches for a path of adjacent squares,
+starting with the Amazon's current square, that fills the entire territory.
+(Such a path is called a Hamiltonian path in graph theory.)
+If such a path is found, the engine moves its Amazon to the next square in the path
+and fires an arrow onto the Amazon's original square; in this way, we are sure that the
+entire territory can be filled.  If no such path is found in the alloted search time
+(one-sixth of the main search time) then the original move is used instead.
+
+<P><b>tests.c:</b> These are automated tests that you can run by passing -t to the amazons program.
+It is recommended that you run these before trying to use the bot.  The tests should catch compiler
+problems (no 64-bit type, insufficient stack space) or any bugs that you might introduce when modifying
+the position generation logic.
+
+
+<P>
+<P>Have fun!  Ask me for help if you get stuck.
+
+
+<h4>Acknowledgements</h4>
+
+I am indebted to Richard Lorentz and to pedropajarito on Little Golem for their help in testing
+Hippolyta's playing performance.  Richard has facilitated several practice games between Hippolyta and
+his world-champion Amazons program Invader.  pedropajarito has played dozens of practice games against
+Hippolyta, improving her performance in the process.  I must note that since he's been playing against
+Hippolyta, his own rating has climbed as well :)
+

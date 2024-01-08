@@ -1,0 +1,5 @@
+Copyright 2014 Tom Plick (tomplick@gmail.com).
+This code is released under the terms of the GNU General Public License version 3.
+
+To compile, run make.  The scripts start and endpos1 contain examples of how to run the program.
+
